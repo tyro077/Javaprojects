@@ -6,6 +6,7 @@ import com.j256.ormlite.support.ConnectionSource;
 
 import java.sql.SQLException;
 import java.util.List;
+import org.mindrot.jbcrypt.BCrypt;
 
 public class AccountDao {
     private final ConnectionSource connectionSource;

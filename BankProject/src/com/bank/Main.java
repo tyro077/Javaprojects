@@ -2,6 +2,9 @@ package com.bank;
 
 import java.sql.SQLException;
 import java.util.Scanner;
+import org.mindrot.jbcrypt.BCrypt;
+import com.bank.UserDao;
+
 
 public class Main {
 
@@ -9,175 +12,222 @@ public class Main {
         try {
             // Initialize the database connection
             DatabaseConfig.initDatabase();
-
+            DatabaseConfig.initTables();
             // Create an instance of AccountDao and pass the ConnectionSource
             AccountDao accountDao = new AccountDao(DatabaseConfig.getConnectionSource());
-
+            UserDao userDao = new UserDao(DatabaseConfig.getConnectionSource());
+            
             Scanner scanner = new Scanner(System.in);
-
+            
             while (true) {
                 System.out.println("Choose an option:");
-                System.out.println("1. Add new account");
-                System.out.println("2. View account");
-                System.out.println("3. Withdraw from account");
-                System.out.println("4. Deposit into account");
-                System.out.println("5. Transfer funds between accounts");
-                System.out.println("6. Exit");
-
-
+                System.out.println("1. Login");
+                System.out.println("2. Register");
+                System.out.println("3. Exit");
+                
                 int choice = scanner.nextInt();
                 scanner.nextLine(); // Consume newline left-over
-
-                switch (choice) {
-                    case 1:
-                        addNewAccount(accountDao, scanner);
-                        break;
-                    case 2:
-                        viewAccount(accountDao, scanner);
-                        break;
-                    case 3:
-                        withdrawFromAccount(accountDao, scanner);
-                        break;
-                    case 4:
-                        depositIntoAccount(accountDao, scanner);
-                        break;
-                    case 5:
-                        transferFunds(accountDao, scanner);
-                        break;
-                    case 6:
-                        DatabaseConfig.closeConnection();
-                        System.exit(0);
-                        break;
-                    default:
-                        System.out.println("Invalid choice. Try again.");
+                
+                if (choice == 3) {
+                    DatabaseConfig.closeConnection();
+                    System.exit(0);
+                } else if (choice == 1) {
+                    if (authenticateUser(userDao, scanner)) {
+                        displayBankingOptions(accountDao, scanner);
+                    }
+                } else if (choice == 2) {
+                    addNewUser(userDao, accountDao, scanner);
+                } else {
+                    System.out.println("Invalid choice. Try again.");
                 }
             }
 
         } catch (SQLException e) {
             e.printStackTrace();
-        }
-    }
-
-    private static void addNewAccount(AccountDao accountDao, Scanner scanner) throws SQLException {
-        System.out.println("Enter account number:");
-        String accountNumber = scanner.nextLine();
-
-        // Validate if account already exists
-        if (accountDao.accountExists(accountNumber)) {
-            System.out.println("Account with this number already exists. Choose a different number.");
-            return;
-        }
-
-        System.out.println("Enter account holder name:");
-        String accountHolderName = scanner.nextLine();
-
-        System.out.println("Enter initial balance:");
-        double balance = scanner.nextDouble();
-        scanner.nextLine();  // Consume newline
-
-        Account newAccount = new Account(accountNumber, accountHolderName, balance);
-        accountDao.createAccount(newAccount);
-
-        System.out.println("Account created successfully!");
-    }
-
-    private static void viewAccount(AccountDao accountDao, Scanner scanner) throws SQLException {
-        System.out.println("Enter account number to view:");
-        String accountNumber = scanner.nextLine();
-
-        Account retrievedAccount = accountDao.getAccountById(accountNumber);
-        if (retrievedAccount != null) {
-            System.out.println("Account Holder: " + retrievedAccount.getAccountHolderName());
-            System.out.println("Balance: " + retrievedAccount.getBalance());
-        } else {
-            System.out.println("No account found with that number.");
-        }
-    }
-    private static void withdrawFromAccount(AccountDao accountDao, Scanner scanner) throws SQLException {
-        System.out.println("Enter account number to withdraw from:");
-        String accountNumber = scanner.nextLine();
-
-        Account existingAccount = accountDao.getAccountById(accountNumber);
-        if (existingAccount == null) {
-            System.out.println("No account found with that number.");
-            return;
-        }
-
-        System.out.println("Enter amount to withdraw:");
-        double amount = scanner.nextDouble();
-        scanner.nextLine();  // Consume newline
-
-        boolean success = existingAccount.withdraw(amount);
-        if (success) {
-            accountDao.updateAccount(existingAccount); // Update the account in the database
-            System.out.println("Withdrawal successful! New balance: " + existingAccount.getBalance());
-        } else {
-            // The withdraw method will print the relevant error message
+            System.out.println("Error initializing the database.");
         }
     }
     
-    private static void depositIntoAccount(AccountDao accountDao, Scanner scanner) throws SQLException {
-        System.out.println("Enter account number to deposit into:");
-        String accountNumber = scanner.nextLine();
+        private static void displayBankingOptions(AccountDao accountDao, Scanner scanner) {
+            while (true) {
+                System.out.println("Banking Options:");
+                System.out.println("1. View account");
+                System.out.println("2. Withdraw from account");
+                System.out.println("3. Deposit into account");
+                System.out.println("4. Transfer funds between accounts");
+                System.out.println("5. Logout");
 
-        Account existingAccount = accountDao.getAccountById(accountNumber);
-        if (existingAccount == null) {
-            System.out.println("No account found with that number.");
-            return;
+                int choice = scanner.nextInt();
+                scanner.nextLine(); // Consume newline left-over
+
+                try {
+                    switch (choice) {
+                        case 1:
+                            viewAccount(accountDao, scanner);
+                            break;
+                        case 2:
+                            withdrawFromAccount(accountDao, scanner);
+                            break;
+                        case 3:
+                            depositIntoAccount(accountDao, scanner);
+                            break;
+                        case 4:
+                            transferFunds(accountDao, scanner);
+                            break;
+                        case 5:
+                            return;  // Logs the user out and returns to the main menu
+                        default:
+                            System.out.println("Invalid choice. Try again.");
+                    }
+                } catch (SQLException e) {
+                    System.out.println("Database error: " + e.getMessage());
+                } catch (Exception e) {
+                    System.out.println("An error occurred: " + e.getMessage());
+                }
+            }
         }
-
-        System.out.println("Enter amount to deposit:");
-        double amount = scanner.nextDouble();
-        scanner.nextLine();  // Consume newline
-
-        existingAccount.deposit(amount);
-        accountDao.updateAccount(existingAccount); // Update the account in the database
-
-        System.out.println("Deposit successful! New balance: " + existingAccount.getBalance());
-    }
     
-    private static void transferFunds(AccountDao accountDao, Scanner scanner) throws SQLException {
-        System.out.println("Enter source account number:");
-        String sourceAccountNumber = scanner.nextLine();
+        private static boolean authenticateUser(UserDao userDao, Scanner scanner) throws SQLException {
+            System.out.println("Enter username:");
+            String username = scanner.nextLine();
 
-        Account sourceAccount = accountDao.getAccountById(sourceAccountNumber);
-        if (sourceAccount == null) {
-            System.out.println("No account found with that source account number.");
-            return;
+            System.out.println("Enter password:");
+            String password = scanner.nextLine();
+
+            User user = userDao.getUserByUsername(username);
+            if (user == null) {
+                System.out.println("Invalid username.");
+                return false;
+            }
+
+            // Here you'd use a library like bcrypt to hash the entered password
+            // and compare it with the stored hash. This is a simplification.
+            if (bcryptCheck(password, user.getHashedPassword())) {
+                Session.setLoggedInUser(user); // Assuming Session is a utility class you've created to track the logged-in user.
+                System.out.println("Login successful!");
+                return true;
+            } else {
+                System.out.println("Invalid password.");
+                return false;
+            }
         }
 
-        System.out.println("Enter destination account number:");
-        String destAccountNumber = scanner.nextLine();
+        
+        private static void addNewUser(UserDao userDao, AccountDao accountDao, Scanner scanner) throws SQLException {
+            System.out.println("Enter desired username:");
+            String username = scanner.nextLine(); // Ensure you define username
 
-        Account destAccount = accountDao.getAccountById(destAccountNumber);
-        if (destAccount == null) {
-            System.out.println("No account found with that destination account number.");
-            return;
+            if (userDao.userExists(username)) {
+                System.out.println("Username already taken. Choose a different one.");
+                return;
+            }
+
+            System.out.println("Enter password:");
+            String password = scanner.nextLine();
+
+            // Hash the password using bcrypt before storing
+            String hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt());
+
+            User newUser = new User(username, hashedPassword); // Assuming the User constructor accepts these parameters
+
+            String uniqueAccountNumber = getNextAccountNumber(); 
+            Account newAccount = new Account(uniqueAccountNumber, username, 0.0);
+
+            accountDao.createAccount(newAccount);
+
+            // Link the new account to the user and save the user to the database
+            // Assuming you've added the setter in the User class to associate an account
+            newUser.setAccount(newAccount);
+            userDao.createUser(newUser);
+
+            System.out.println("User and account created successfully! Your account number is: " + newAccount.getAccountNumber());
         }
 
-        System.out.println("Enter amount to transfer:");
-        double amount = scanner.nextDouble();
-        scanner.nextLine();  // Consume newline
 
-        // Ensure sufficient balance in the source account
-        if (sourceAccount.getBalance() < amount) {
-            System.out.println("Insufficient balance in the source account.");
-            return;
+        private static String getNextAccountNumber() {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		private static boolean bcryptCheck(String password, String hashedPassword) {
+            // This function will use the bcrypt library to check the password.
+            return BCrypt.checkpw(password, hashedPassword); 
         }
 
-        // Now, perform the transfer
-        sourceAccount.withdraw(amount);
-        destAccount.deposit(amount);
+		private static void viewAccount(AccountDao accountDao, Scanner scanner) throws SQLException {
+		    User currentUser = Session.getLoggedInUser();
+		    Account userAccount = currentUser.getAccount();  // Directly get the account from the user
+		    
+		    System.out.println("Account Holder: " + userAccount.getAccountHolderName());
+		    System.out.println("Balance: " + userAccount.getBalance());
+		}
+		private static void withdrawFromAccount(AccountDao accountDao, Scanner scanner) throws SQLException {
+		    User currentUser = Session.getLoggedInUser();
+		    Account userAccount = currentUser.getAccount();  // Directly get the account from the user
 
-        // Update the accounts in the database
-        accountDao.updateAccount(sourceAccount);
-        accountDao.updateAccount(destAccount);
+		    System.out.println("Enter amount to withdraw:");
+		    double amount = scanner.nextDouble();
+		    scanner.nextLine();  // Consume newline
 
-        System.out.println("Transfer successful! New balance in source account: " + sourceAccount.getBalance());
-        System.out.println("New balance in destination account: " + destAccount.getBalance());
-    }
+		    boolean success = userAccount.withdraw(amount);
+		    if (success) {
+		        accountDao.updateAccount(userAccount); // Update the account in the database
+		        System.out.println("Withdrawal successful! New balance: " + userAccount.getBalance());
+		    } else {
+		        // The withdraw method will print the relevant error message
+		    }
+		}
+    
+		private static void depositIntoAccount(AccountDao accountDao, Scanner scanner) throws SQLException {
+		    User currentUser = Session.getLoggedInUser();
+		    Account userAccount = currentUser.getAccount();  // Directly get the account from the user
 
+		    System.out.println("Enter amount to deposit:");
+		    double amount = scanner.nextDouble();
+		    scanner.nextLine();  // Consume newline
 
+		    userAccount.deposit(amount);
+		    accountDao.updateAccount(userAccount); // Update the account in the database
 
+		    System.out.println("Deposit successful! New balance: " + userAccount.getBalance());
+		}
+    
+		private static void transferFunds(AccountDao accountDao, Scanner scanner) throws SQLException {
+		    User currentUser = Session.getLoggedInUser();
+		    Account sourceAccount = currentUser.getAccount();  // Directly get the account from the user
+
+		    System.out.println("Enter destination account number:");
+		    String destAccountNumber = scanner.nextLine();
+
+		    Account destAccount = accountDao.getAccountById(destAccountNumber);
+		    if (destAccount == null) {
+		        System.out.println("No account found with that destination account number.");
+		        return;
+		    }
+
+		    System.out.println("Enter amount to transfer:");
+		    double amount = scanner.nextDouble();
+		    scanner.nextLine();  // Consume newline
+
+		    // Ensure sufficient balance in the source account
+		    if (sourceAccount.getBalance() < amount) {
+		        System.out.println("Insufficient balance.");
+		        return;
+		    }
+
+		    // Now, perform the transfer
+		    sourceAccount.withdraw(amount);
+		    destAccount.deposit(amount);
+
+		    // Update the accounts in the database
+		    accountDao.updateAccount(sourceAccount);
+		    accountDao.updateAccount(destAccount);
+
+		    System.out.println("Transfer successful! New balance in your account: " + sourceAccount.getBalance());
+		    System.out.println("New balance in destination account: " + destAccount.getBalance());
+		
+
+		}
 }
+
 

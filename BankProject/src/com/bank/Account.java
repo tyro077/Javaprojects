@@ -1,5 +1,7 @@
 package com.bank;
 
+import java.util.UUID;
+
 import com.j256.ormlite.field.DatabaseField;
 import com.j256.ormlite.table.DatabaseTable;
 
@@ -8,6 +10,9 @@ public class Account {
 
     // Attributes
     @DatabaseField(id = true) // Specifies this field as the primary key
+    private String accountId;
+    
+    @DatabaseField
     private String accountNumber;
 
     @DatabaseField // Specifies this field as a database column
@@ -15,6 +20,8 @@ public class Account {
 
     @DatabaseField // Specifies this field as a database column
     private double balance;
+    
+    private String password;
 
     // Default (no-argument) constructor
     public Account() {
@@ -23,7 +30,8 @@ public class Account {
 
     // Constructor
     public Account(String accountNumber, String accountHolderName, double initialBalance) {
-        this.accountNumber = accountNumber;
+        this.accountId = UUID.randomUUID().toString();
+    	this.accountNumber = accountNumber;
         this.accountHolderName = accountHolderName;
         this.balance = initialBalance;
     }
@@ -47,6 +55,14 @@ public class Account {
             return false; // withdrawal failed
         }
     }
+    
+    public String getAccountId() {
+    	return accountId;
+    }
+    
+    public void setAccountId(String accountId) {
+    	this.accountId = accountId;
+    }
 
     // Get the current balance
     public double getBalance() {
@@ -62,7 +78,12 @@ public class Account {
     public String getAccountHolderName() {
         return accountHolderName;
     }
-
-    // You can also add setters if you need to modify account details, 
-    // and any other additional methods specific to the account's functionality.
+    
+    public String getPassword() {
+        return password;
+    }
+    public void setPassword(String password) {
+        this.password = password;
+    }
 }
+

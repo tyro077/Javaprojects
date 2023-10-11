@@ -4,7 +4,7 @@ import java.sql.SQLException;
 
 import com.j256.ormlite.jdbc.JdbcConnectionSource;
 import com.j256.ormlite.support.ConnectionSource;
-
+import com.j256.ormlite.table.TableUtils;
 public class DatabaseConfig {
     // Database URL for SQLite
     private static final String DATABASE_URL = "jdbc:sqlite:bank_database.db";
@@ -22,6 +22,11 @@ public class DatabaseConfig {
             connectionSource = new JdbcConnectionSource(DATABASE_URL);
         }
     }
+    public static void initTables() throws SQLException {
+        TableUtils.createTableIfNotExists(getConnectionSource(), User.class);
+        TableUtils.createTableIfNotExists(getConnectionSource(), Account.class);
+    }
+
     
     /**
      * Retrieves a singleton instance of the ConnectionSource.
