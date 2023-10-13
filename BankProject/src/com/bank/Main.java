@@ -196,12 +196,12 @@ public class Main {
 		    User currentUser = Session.getLoggedInUser();
 		    Account sourceAccount = currentUser.getAccount();  // Directly get the account from the user
 
-		    System.out.println("Enter destination account number:");
-		    String destAccountNumber = scanner.nextLine();
+		    System.out.println("Enter the username of the recipient:");
+		    String recipientAccountHolderName = scanner.nextLine();
 
-		    Account destAccount = accountDao.getAccountById(destAccountNumber);
+		    Account destAccount = accountDao.findByAccountHolderName(recipientAccountHolderName);
 		    if (destAccount == null) {
-		        System.out.println("No account found with that destination account number.");
+		        System.out.println("No account found for this username.");
 		        return;
 		    }
 
@@ -214,7 +214,7 @@ public class Main {
 		        System.out.println("Insufficient balance.");
 		        return;
 		    }
-
+		
 		    // Now, perform the transfer
 		    sourceAccount.withdraw(amount);
 		    destAccount.deposit(amount);

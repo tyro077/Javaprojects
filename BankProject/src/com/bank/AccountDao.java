@@ -20,6 +20,14 @@ public class AccountDao {
     public void createAccount(Account account) throws SQLException {
         accountDao.create(account);
     }
+    public Account findByAccountHolderName(String accountHolderName) throws SQLException {
+        List<Account> accounts = accountDao.queryBuilder().where().eq("accountHolderName", accountHolderName).query();
+        if (accounts.isEmpty()) {
+            return null;
+        }
+        return accounts.get(0);
+    }
+
 
     public Account getAccountById(String accountNumber) throws SQLException {
         return accountDao.queryForId(accountNumber);
